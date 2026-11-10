@@ -1,10 +1,9 @@
 module github.com/GaluraSwara/Backend
 
-go 1.23.5
+go 1.27.3
 
 require (
 	github.com/gofiber/fiber/v2 v2.52.6
-	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/joho/godotenv v1.5.1
 	go.mongodb.org/mongo-driver v1.17.3
 	golang.org/x/crypto v0.31.0
