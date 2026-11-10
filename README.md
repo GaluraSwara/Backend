@@ -1,14 +1,20 @@
 # 🎵 GaluraSwara Backend
 
-Backend API untuk aplikasi pemutar playlist dan musik GaluraSwara, dibangun menggunakan **Gocroot** (Go Fiber + MongoDB).
+Backend API untuk aplikasi pemutar playlist dan musik GaluraSwara, dibangun menggunakan arsitektur **Gocroot** (Go Fiber + MongoDB + PASETO v4.public Asymmetric Cryptography).
 
 ## Tech Stack
 
-- **Go Fiber** — Web framework
-- **MongoDB** — Database
-- **JWT** — Autentikasi
-- **bcrypt** — Hash password
-- **GitHub Actions** — CI/CD ke Alwaysdata
+- **Go Fiber v2** — Web framework berkinerja tinggi
+- **MongoDB** — Basis data NoSQL dokumen
+- **PASETO v4.public (Ed25519)** — Autentikasi asimetris modern (*Platform-Agnostic Security Tokens*)
+- **bcrypt** — Hashing password
+- **GitHub Actions** — CI/CD otomatis deploy ke Alwaysdata
+
+## Keunggulan PASETO v4.public vs JWT
+
+1. **Bebas Kerentanan Algoritma**: JWT rentan terhadap serangan manipulasi header (`"alg": "none"` atau pergantian RS256 ke HS256). PASETO v4.public secara ketat dan permanen mematok algoritma digital signature ke **EdDSA over Curve25519 (Ed25519)**.
+2. **Kriptografi Asimetris**: Private key hanya disimpan di server otentikasi untuk menandatangani token, sedangkan verifikasi token dapat dilakukan secara aman menggunakan Public Key.
+3. **Pre-Authentication Encoding (PAE)**: Mencegah serangan pemalsuan panjang payload (*length-extension & canonicalization attacks*).
 
 ## Struktur Project
 
@@ -18,13 +24,14 @@ Backend/
 │   └── deploy.yml          # CI/CD ke Alwaysdata
 ├── config/
 │   ├── db.go               # Koneksi MongoDB
-│   └── auth.go             # Konfigurasi JWT
+│   ├── auth.go             # Implementasi PASETO v4.public (Ed25519 PAE)
+│   └── auth_test.go        # Unit test otentikasi PASETO
 ├── controller/
 │   ├── auth_controller.go  # Handler auth (login/register)
 │   ├── song_controller.go  # Handler CRUD lagu
 │   └── playlist_controller.go # Handler CRUD playlist
 ├── middleware/
-│   └── auth_middleware.go  # JWT middleware
+│   └── auth_middleware.go  # Middleware verifikasi token PASETO
 ├── model/
 │   ├── user.go             # Model User
 │   ├── song.go             # Model Song
@@ -43,10 +50,10 @@ Backend/
 ## API Endpoints
 
 ### Auth (Public)
-| Method | Endpoint             | Deskripsi         |
-|--------|----------------------|-------------------|
-| POST   | `/api/auth/register` | Registrasi user   |
-| POST   | `/api/auth/login`    | Login user        |
+| Method | Endpoint             | Deskripsi                                   |
+|--------|----------------------|---------------------------------------------|
+| POST   | `/api/auth/register` | Registrasi user & mendapatkan token PASETO  |
+| POST   | `/api/auth/login`    | Login user & mendapatkan token PASETO       |
 
 ### Songs
 | Method | Endpoint           | Auth | Deskripsi           |
@@ -79,40 +86,14 @@ Backend/
 | GET    | `/api/user/profile`   | Profil user        |
 | GET    | `/api/user/playlists` | Playlist milik user|
 
-## Setup
+## Menjalankan Server & Test
 
-### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/GaluraSwara/Backend.git
 cd Backend
-go mod tidy
-```
 
-### 2. Konfigurasi Environment
-```bash
-cp .env.example .env
-# Edit .env sesuai konfigurasi MongoDB Anda
-```
+# Jalankan unit test otentikasi PASETO
+go test -v ./config
 
-### 3. Jalankan Server
-```bash
+# Jalankan server API
 go run main.go
 ```
-
-Server akan berjalan di `http://localhost:8080`
-
-## CI/CD ke Alwaysdata
-
-Tambahkan secrets berikut di **Settings > Secrets and variables > Actions** di GitHub:
-
-| Secret           | Deskripsi                            |
-|------------------|--------------------------------------|
-| `SSH_HOST`       | SSH hostname Alwaysdata              |
-| `SSH_USERNAME`   | Username SSH                         |
-| `SSH_PASSWORD`   | Password SSH                         |
-| `SSH_PORT`       | Port SSH (default: 22)               |
-| `DEPLOY_FOLDER`  | Folder tujuan deploy di server       |
-| `API_KEY`        | Alwaysdata API key                   |
-| `APP_ID`         | Alwaysdata App/Site ID               |
-
-Setiap push ke branch `main` akan otomatis build dan deploy.
