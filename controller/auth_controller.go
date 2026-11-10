@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
@@ -85,13 +84,13 @@ func Register(c *fiber.Ctx) error {
 		})
 	}
 
-	// Generate JWT token
-	userID := result.InsertedID.(primitive.ObjectID)
-	token, err := generateToken(userID, req.Username)
+	// Generate PASETO v4.public token (24 jam)
+	userID := result.InsertedID.(primitive.ObjectID).Hex()
+	token, err := config.SignPasetoV4Public(userID, req.Username, 24*time.Hour)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.AuthResponse{
 			Status:  false,
-			Message: "Berhasil daftar, tapi gagal membuat token",
+			Message: "Berhasil daftar, tapi gagal membuat token PASETO",
 		})
 	}
 
@@ -102,7 +101,7 @@ func Register(c *fiber.Ctx) error {
 	})
 }
 
-// Login mengautentikasi user dan mengembalikan token
+// Login mengautentikasi user dan mengembalikan token PASETO v4.public
 func Login(c *fiber.Ctx) error {
 	var req model.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -141,12 +140,12 @@ func Login(c *fiber.Ctx) error {
 		})
 	}
 
-	// Generate token
-	token, err := generateToken(user.ID, user.Username)
+	// Generate PASETO v4.public token
+	token, err := config.SignPasetoV4Public(user.ID.Hex(), user.Username, 24*time.Hour)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.AuthResponse{
 			Status:  false,
-			Message: "Gagal membuat token",
+			Message: "Gagal membuat token PASETO",
 		})
 	}
 
@@ -186,17 +185,4 @@ func GetProfile(c *fiber.Ctx) error {
 			CreatedAt: user.CreatedAt,
 		},
 	})
-}
-
-// generateToken membuat JWT token
-func generateToken(userID primitive.ObjectID, username string) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id":  userID.Hex(),
-		"username": username,
-		"exp":      time.Now().Add(config.GetJWTExpiry()).Unix(),
-		"iat":      time.Now().Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(config.GetJWTSecret()))
 }
